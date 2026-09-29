@@ -20,7 +20,7 @@ let P = { course:"en-nl", C:{}, rate:0.9, engine:"auto", day:{}, streak:{ n:0, l
 try { const raw = localStorage.getItem(KEY); if (raw) { const o = JSON.parse(raw);
   if (!o.C) { const nl = blankCourse(PACKS.nl); ["vocab","due","drills","order","exams","generated","extra"].forEach(k => { if (o[k]) nl[k] = o[k]; }); if (o.level) nl.level = o.level;
     Object.keys(nl.vocab).forEach(k => { if (nl.due[k] == null) nl.due[k] = Date.now(); });
-    P = Object.assign(P, { rate:o.rate || 0.9, engine:o.engine || "auto", day:o.day || {}, streak:o.streak || P.streak, mode:o.mode || "practice", passcode:o.passcode, installHide:o.installHide, C:{ "en-nl":nl } }); }
+    P = Object.assign(P, { rate:o.rate || 0.9, engine:o.engine || "auto", day:o.day || {}, streak:o.streak || P.streak, mode:o.mode || "practice", installHide:o.installHide, C:{ "en-nl":nl } }); }
   else P = Object.assign(P, o); } } catch (e) {}
 const qp = new URLSearchParams(location.search);
 const PUBLIC_UID = qp.get("u");
@@ -473,7 +473,7 @@ function viewExamHome() {
 }
 function settingsHTML() {
   const mode = sttMode(), p = pack();
-  const aiLine = ai ? t("aiOn") : IN_CLAUDE ? t("aiChecking") : AI_STATE.checked ? (AI_STATE.ai ? (AI_STATE.passcode && !P.passcode ? t("aiPass") : t("aiOn")) : (navigator.onLine ? t("aiNoServer") : t("aiOffline"))) : t("aiChecking");
+  const aiLine = ai ? t("aiOn") : "";
   const whs = { ready:t("whReady"), loading:t("whLoading") + ` <span id="whpct">${WH.pct}%</span>`, error:t("whError"), idle:t("whIdle") }[WH.status];
   return `<label class="rate">${t("audioSpeed")} <input type="range" min="0.6" max="1.2" step="0.1" value="${P.rate}" data-rate> <span>${P.rate}x</span></label>
     ${(() => { const bv = bestVoice(p.speech); return bv ? `<p class="meta">${esc(t("voice", bv.name))}</p>` : `<p class="warn">${esc(t("noVoice", p.name))}</p>`; })()}
@@ -483,7 +483,6 @@ function settingsHTML() {
     ${mode ? `<div class="row">${micBtn("test", t("micTest"))}</div>` : ""}${S.micTest ? `<p class="meta">${esc(S.micTest)}</p>` : ""}
     ${WHISPER_OK ? `<p class="meta">${t("whisperLine", whs)}</p>${WH.status === "loading" ? `<div class="dl"><i id="whbar" style="width:${WH.pct}%"></i></div>` : WH.status !== "ready" ? `<div class="row"><button class="btn ghost small" data-whisper>${t("whDownload")}</button></div>` : ""}` : ""}
     <p class="meta">${aiLine}</p>
-    ${!IN_CLAUDE && AI_STATE.passcode ? `<div class="row"><input id="pass" class="field" type="password" autocomplete="off" placeholder="${t("passcode")}" value="${esc(P.passcode || "")}" style="max-width:220px"><button class="btn ghost small" data-savepass>${t("savePass")}</button></div>` : ""}
     <div class="row"><label class="meta" for="uilang">${t("interfaceLang")}</label><select id="uilang" class="field" style="max-width:200px" data-uilang>${(typeof UI_LANGS !== "undefined" ? UI_LANGS : [["en","English"]]).map(l => `<option value="${l[0]}" ${l[0] === UI_LANG ? "selected" : ""}>${l[1]}</option>`).join("")}</select></div>
     <div class="row">${!IN_CLAUDE && !STANDALONE ? `<button class="btn ghost small" data-installshow>${t("installApp")}</button>` : ""}<button class="btn ghost small" data-export>${t("exportP")}</button><button class="btn ghost small" data-import>${t("importP")}</button><input id="impfile" type="file" accept="application/json" hidden></div>`;
 }
@@ -1496,8 +1495,7 @@ document.addEventListener("click", e => {
   if (ds.slow != null) { speak(ds.slow, null, true); return; }
   if (ds.mic != null) { if (S.mic) { const same = S.mic.ctx === ds.mic; S.mic.h.stop(); if (same) return; } startMic(ds.mic); return; }
   if (ds.whisper != null) { loadWhisper().then(() => toast(t("whDone"))).catch(() => toast(t("whFail"))); return; }
-  if (ds.savepass != null) { P.passcode = $("#pass").value.trim(); save(); toast(t("passSaved")); checkAI(); return; }
-  if (ds.export != null) { const blob = new Blob([JSON.stringify({ app:"forareason", version:4, exported:new Date().toISOString(), progress:{ ...P, passcode:undefined } }, null, 2)], { type:"application/json" });
+  if (ds.export != null) { const blob = new Blob([JSON.stringify({ app:"forareason", version:4, exported:new Date().toISOString(), progress:{ ...P } }, null, 2)], { type:"application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "forareason-progress-" + dstr(Date.now()) + ".json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); return; }
   if (ds.import != null) { $("#impfile").click(); return; }
   // words
@@ -1593,24 +1591,19 @@ document.addEventListener("change", async e => {
   if (e.target.dataset.engine != null) { P.engine = e.target.value; browserBroken = false; save(); renderSoft(); return; }
   if (e.target.id !== "impfile" || !e.target.files[0]) return;
   try { const j = JSON.parse(await e.target.files[0].text()); if (!j.progress || !["forareason","lang-check","nt2-trainer"].includes(j.app)) throw 0;
-    const keep = P.passcode; localStorage.setItem(KEY, JSON.stringify(j.progress)); P.passcode = keep; toast(t("imported")); setTimeout(() => location.reload(), 600); }
+    localStorage.setItem(KEY, JSON.stringify(j.progress)); toast(t("imported")); setTimeout(() => location.reload(), 600); }
   catch (err) { toast(t("badImport")); }
 });
 document.addEventListener("keydown", e => { if (e.key !== "Enter") return; const m = { vin:["vcheck","vnext"], lin:["lcheck","lnext"], kin:["kcheck","knext"] }[e.target.id];
   if (m) { const b = $(`[data-${m[0]}]`) || $(`[data-${m[1]}]`); b && b.click(); } });
 
 /* ---------- AI wiring ---------- */
-const AI_STATE = { ai:false, passcode:false, checked:false };
+const AI_STATE = { ai:false, checked:true };
 async function checkAI() {
   if (IN_CLAUDE) { try { const s = window.claude && window.claude.use ? await window.claude.use("sample") : null;
-      ai = s ? { json:p => s.json(p, { modelTier:"default", cache:false }).catch(e => { throw { code:e && e.code }; }) } : null; } catch (e) { ai = null; } renderSoft(); return; }
-  try { const r = await fetch("/api/status", { cache:"no-store" }); const j = await r.json(); AI_STATE.ai = !!j.ai; AI_STATE.passcode = !!j.passcode; } catch (e) { AI_STATE.ai = false; }
-  AI_STATE.checked = true;
-  ai = AI_STATE.ai ? { async json(prompt) { if (!navigator.onLine) throw { code:"offline" };
-    const r = await fetch("/api/claude", { method:"POST", headers:{ "content-type":"application/json", "x-app-passcode":P.passcode || "" }, body:JSON.stringify({ prompt }) });
-    if (!r.ok) throw { code:r.status === 401 ? "not_granted" : r.status === 429 ? "rate_limited" : r.status === 503 ? "not_configured" : "error" };
-    return (await r.json()).data; } } : null;
-  renderSoft();
+      ai = s ? { json:p => s.json(p, { modelTier:"default", cache:false }).catch(e => { throw { code:e && e.code }; }) } : null; } catch (e) { ai = null; } }
+  else { ai = null; } // deployed site runs without live AI; all core content is pre-generated
+  AI_STATE.ai = !!ai; renderSoft();
 }
 
 /* ---------- install prompt ---------- */

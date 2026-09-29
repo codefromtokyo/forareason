@@ -67,9 +67,6 @@ Enable **Discussions** in the repo settings for the Community link.
 
 Environment variables (Project → Settings → Environment Variables), then redeploy:
 
-- `ANTHROPIC_API_KEY`: enables AI marking, translations, example answers and new practice content
-- `APP_PASSCODE`: recommended; required by `/api/claude`
-- `ANTHROPIC_MODEL`: optional, default `claude-sonnet-5`
 
 Without the API key the whole syllabus and all multiple-choice mocks still work.
 
