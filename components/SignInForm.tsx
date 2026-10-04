@@ -14,7 +14,7 @@ export function SignInForm() {
       const supabase = supabaseBrowser();
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+        options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin + "/auth/callback" : undefined },
       });
       setMsg(error ? error.message : `Link sent to ${email}. Open it to sign in.`);
     } catch (e: any) {
@@ -25,7 +25,7 @@ export function SignInForm() {
     const supabase = supabaseBrowser();
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+      options: { redirectTo: typeof window !== "undefined" ? window.location.origin + "/auth/callback" : undefined },
     });
   }
 
